@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rock Paper Scissors</title>
+    <style>
+      body {
+        background: linear-gradient(
+          -45deg,
+          #ff9a9e,
+          #fad0c4,
+          #fbc2eb,
+          #a18cd1,
+          #a1c4fd,
+          #c2e9fb
+        );
+        background-size: 600% 600%;
+        animation: gradientBG 20s ease infinite;
+        font-family: "Arial", sans-serif;
+        margin: 0;
+        overflow: hidden;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+      }
+
+      @keyframes gradientBG {
+        0% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+
+      .choice-btn {
+        width: 100px;
+        height: 100px;
+        font-size: 50px;
+        border-radius: 50%;
+        border: 2px solid #333;
+        background: white;
+        cursor: pointer;
+        margin: 10px;
+        transition: 0.3s;
+      }
+
+      .choice-btn:hover {
+        background: #333;
+        color: white;
+        transform: scale(1.1);
+      }
+
+      .results,
+      .score,
+      #best-of-status,
+      #scoreboard {
+        margin: 10px;
+        font-size: 20px;
+      }
+
+      .score,
+      #scoreboard {
+        background: rgba(255, 255, 255, 0.85);
+        padding: 10px 20px;
+        border-radius: 12px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      }
+
+      .reset-btn,
+      #start-game-btn {
+        padding: 10px 20px;
+        background: #333;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-top: 10px;
+      }
+
+      .choices,
+      #game-section {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .choices {
+        flex-direction: row; /* side-by-side layout */
+        justify-content: center;
+        margin-top: 10px;
+      }
+
+      select,
+      input[type="text"] {
+        padding: 10px;
+        font-size: 16px;
+        margin-bottom: 10px;
+        border-radius: 5px;
+      }
+
+      #scoreboard ul {
+        list-style: none;
+        padding-left: 0;
+        max-height: 150px;
+        overflow-y: auto;
+      }
+
+      #scoreboard li {
+        padding: 4px 0;
+      }
+
+      .confetti {
+        position: absolute;
+        top: 0;
+        left: 0;
+        font-size: 2rem;
+        animation: fall 3s linear forwards;
+        pointer-events: none;
+      }
+
+      @keyframes fall {
+        0% {
+          transform: translateY(0) rotate(0deg);
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(100vh) rotate(720deg);
+          opacity: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🎮 Rock Paper Scissors</h1>
+    <div id="player-avatar" style="font-size: 50px; margin-bottom: 10px">
+      👾
+    </div>
+
+    <div id="setup-section">
+      <input type="text" id="player-name" placeholder="Enter your name" />
+      <select id="target-score-select">
+        <option value="10">First to 10</option>
+        <option value="15">First to 15</option>
+        <option value="20">First to 20</option>
+      </select>
+      <button id="start-game-btn">Start Game</button>
+    </div>
+
+    <div id="game-section">
+      <div class="choices">
+        <button class="choice-btn" data-choice="rock">🥔</button>
+        <button class="choice-btn" data-choice="paper">📄</button>
+        <button class="choice-btn" data-choice="scissors">✂️</button>
+      </div>
+
+      <div class="results"><p>Make your move</p></div>
+
+      <div class="score">
+        <div>Player: <span id="player-score">0</span></div>
+        <div>Computer: <span id="computer-score">0</span></div>
+      </div>
+
+      <div id="best-of-status"></div>
+
+      <div id="scoreboard">
+        <strong>🏅 Match History:</strong>
+        <ul id="history-list"></ul>
+      </div>
+
+      <button class="reset-btn">Reset Game</button>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const emojis = ["🐸", "🦄", "🐙", "🧞", "👻", "🤡", "🦖", "🐲"];
+        document.getElementById("player-avatar").textContent =
+          emojis[Math.floor(Math.random() * emojis.length)];
+
+        const choiceButtons = document.querySelectorAll(".choice-btn");
+        const resultsDiv = document.querySelector(".results");
+        const playerScoreSpan = document.getElementById("player-score");
+        const computerScoreSpan = document.getElementById("computer-score");
+        const startBtn = document.getElementById("start-game-btn");
+        const nameInput = document.getElementById("player-name");
+        const targetScoreSelect = document.getElementById(
+          "target-score-select"
+        );
+        const setupSection = document.getElementById("setup-section");
+        const gameSection = document.getElementById("game-section");
+        const choiceSection = document.querySelector(".choices");
+        const bestOfStatus = document.getElementById("best-of-status");
+        const resetBtn = document.querySelector(".reset-btn");
+        const historyList = document.getElementById("history-list");
+
+        const emojiMap = { rock: "🥔", paper: "📄", scissors: "✂️" };
+        const choices = ["rock", "paper", "scissors"];
+
+        let playerScore = 0;
+        let computerScore = 0;
+        let targetScore = 10;
+        let gameOver = false;
+
+        function updateScores() {
+          const name = nameInput.value || "You";
+          playerScoreSpan.textContent = playerScore;
+          computerScoreSpan.textContent = computerScore;
+
+          if (playerScore >= targetScore) {
+            bestOfStatus.textContent = `${name} reached ${targetScore} points! 🏆`;
+            addHistory(`${name} wins ${playerScore}-${computerScore}`);
+            launchConfetti();
+            endGame();
+          } else if (computerScore >= targetScore) {
+            bestOfStatus.textContent = `Computer reached ${targetScore} points! 🤖🏆`;
+            addHistory(`Computer wins ${computerScore}-${playerScore}`);
+            launchConfetti();
+            endGame();
+          } else {
+            bestOfStatus.textContent =
+              playerScore > computerScore
+                ? `${name} is leading! 😎`
+                : playerScore < computerScore
+                ? `Computer is ahead! 😬`
+                : `It's a tight game! 🤝`;
+          }
+        }
+
+        function endGame() {
+          gameOver = true;
+          choiceButtons.forEach((btn) => (btn.disabled = true));
+        }
+
+        function addHistory(result) {
+          const li = document.createElement("li");
+          li.textContent = result;
+          historyList.prepend(li);
+        }
+
+        function launchConfetti() {
+          const emojis = ["🎉", "✨", "🎊", "💥", "🪅"];
+          for (let i = 0; i < 40; i++) {
+            const confetti = document.createElement("div");
+            confetti.className = "confetti";
+            confetti.textContent =
+              emojis[Math.floor(Math.random() * emojis.length)];
+            confetti.style.left = `${Math.random() * 100}vw`;
+            confetti.style.animationDuration = `${2 + Math.random() * 2}s`;
+            document.body.appendChild(confetti);
+            setTimeout(() => confetti.remove(), 3000);
+          }
+        }
+
+        startBtn.addEventListener("click", () => {
+          targetScore = parseInt(targetScoreSelect.value);
+          playerScore = 0;
+          computerScore = 0;
+          gameOver = false;
+
+          setupSection.style.display = "none";
+          gameSection.style.display = "flex";
+          choiceSection.style.display = "flex";
+          choiceButtons.forEach((btn) => (btn.disabled = false));
+          updateScores();
+        });
+
+        choiceButtons.forEach((btn) => {
+          btn.addEventListener("click", () => {
+            if (gameOver) return;
+
+            const playerChoice = btn.dataset.choice;
+            const computerChoice =
+              choices[Math.floor(Math.random() * choices.length)];
+            let result = "";
+
+            if (playerChoice === computerChoice) {
+              result = "It's a tie! 🤯";
+            } else if (
+              (playerChoice === "rock" && computerChoice === "scissors") ||
+              (playerChoice === "paper" && computerChoice === "rock") ||
+              (playerChoice === "scissors" && computerChoice === "paper")
+            ) {
+              result = "You win this round! 🎉";
+              playerScore++;
+            } else {
+              result = "Computer wins this round! 💻";
+              computerScore++;
+            }
+
+            resultsDiv.innerHTML = `
+            <p>You picked <strong>${emojiMap[playerChoice]}</strong></p>
+            <p>Computer picked <strong>${emojiMap[computerChoice]}</strong></p>
+            <p>${result}</p>
+          `;
+            updateScores();
+          });
+        });
+
+        resetBtn.addEventListener("click", () => {
+          playerScore = 0;
+          computerScore = 0;
+          gameOver = false;
+
+          setupSection.style.display = "flex";
+          gameSection.style.display = "none";
+          resultsDiv.innerHTML = "<p>Make your move</p>";
+          bestOfStatus.textContent = "";
+        });
+      });
+    </script>
+  </body>
+</html>
